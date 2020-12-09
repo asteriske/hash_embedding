@@ -125,6 +125,13 @@ class HashEmbedding(tf.keras.layers.Layer):
         weighted_embeddings = []
 
         for hash_id, hash_tab in enumerate(self.hash_tables):
+            # If a value in `word_ids_to_hash_space` is zero it won't find a value in 
+            # the hash table since we've constrained the hash table to be > 0 and return
+            # 0 only if there's a lookup at an index out of range for the hash table.
+            
+            # A value of 0 *is* out of range, so the hash will return zero if it gets
+            # zero, and that will invoke the 0th entry of the embedding, which is by
+            # construction full of zero.
             word_id_to_embedding_bucket = hash_tab.lookup(word_ids_to_hash_space)
 
             print("word_id_to_embedding_bucket")
