@@ -46,7 +46,7 @@ class HashEmbedding(tf.keras.layers.Layer):
 
         for i in range(self.num_hash_func):
             values_tensor = tf.random.uniform(shape=[self.num_words],
-                minval=1,
+                minval=0,
                 maxval=(2**16)-1,
                 dtype=tf.int32)
             keys_tensor = tf.squeeze(tf.where(values_tensor))
@@ -55,7 +55,7 @@ class HashEmbedding(tf.keras.layers.Layer):
                 StaticHashTable(
                     initializer=KeyValueTensorInitializer(
                         keys=keys_tensor,
-                        values=values_tensor % self.num_hash_buckets
+                        values=(values_tensor % self.num_hash_buckets)+1
                     ),
                     default_value=0
                 )

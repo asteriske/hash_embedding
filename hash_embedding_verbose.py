@@ -49,18 +49,18 @@ class HashEmbedding(tf.keras.layers.Layer):
         print("hash table values")
         for i in range(self.num_hash_func):
             values_tensor = tf.random.uniform(shape=[self.num_words],
-                minval=1,
+                minval=0,
                 maxval=(2**16)-1,
                 dtype=tf.int32)
             keys_tensor = tf.squeeze(tf.where(values_tensor))
             
-            print(tf.raw_ops.Mod(x=values_tensor, y=self.num_hash_buckets))
+            print((values_tensor % self.num_hash_buckets)+1)
             
             self.hash_tables.append(
                 StaticHashTable(
                     initializer=KeyValueTensorInitializer(
                         keys=keys_tensor,
-                        values=values_tensor % self.num_hash_buckets
+                        values=(values_tensor % self.num_hash_buckets)+1
                     ),
                     default_value=0
                 )
