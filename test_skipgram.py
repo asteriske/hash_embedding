@@ -1,6 +1,6 @@
 import unittest
 import tensorflow as tf
-from skipgram import Skipgram
+from my_w2v.skipgram import Skipgram
 
 class TestSkipgram(unittest.TestCase):
 
@@ -11,7 +11,7 @@ class TestSkipgram(unittest.TestCase):
         input = tf.constant([1,2,0,0,0,0], dtype=tf.int64)
 
         target, features, labels = this_skipgram(input)
-        tf.assert_equal(target, tf.constant([1,2],dtype=tf.int64))
+        tf.assert_equal(target, tf.constant([[1],[2]],dtype=tf.int64))
         tf.assert_equal(features.shape, tf.TensorShape([2,4]))
         tf.assert_equal(labels.shape, tf.TensorShape([2,4]))
         tf.assert_equal(labels, tf.constant([[1,0,0,0],
@@ -23,7 +23,6 @@ class TestSkipgram(unittest.TestCase):
         this_skipgram = Skipgram(window=3, vocab_size=vocab_size, num_negative_per_example=6, frequencies=None)
 
         input = tf.constant([1,2,0,0,0,0], dtype=tf.int64)
-
         target, features, labels = this_skipgram(input)
         tf.assert_equal(target, tf.constant([1,2],dtype=tf.int64))
         tf.assert_equal(features.shape, tf.TensorShape([2,7]))
