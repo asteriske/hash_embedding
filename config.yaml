@@ -1,0 +1,10 @@
+vocab_size: 16384
+sequence_length: 10
+seed: 1139
+batch_size: 1024
+embedding_dim: 32 
+num_ns: 4
+buffer_size: 10000
+window_size: 2
+vocab_file: 'meta.tsv'
+target_file: 'target.tsv'

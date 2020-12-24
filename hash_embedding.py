@@ -43,14 +43,16 @@ class HashEmbedding(tf.keras.layers.Layer):
     def build(self, batch_input_shape):
 
         self.hash_tables = []
-
+        print("initializing hashes")
         for i in range(self.num_hash_func):
             values_tensor = tf.random.uniform(shape=[self.num_words],
-                minval=0,
+            # values_tensor = tf.random.uniform(shape=[self.num_words+1],
+                minval=1,
                 maxval=(2**16)-1,
                 dtype=tf.int32)
             keys_tensor = tf.squeeze(tf.where(values_tensor))
-            
+            print(keys_tensor)
+            print(values_tensor)
             self.hash_tables.append(
                 StaticHashTable(
                     initializer=KeyValueTensorInitializer(
@@ -60,16 +62,19 @@ class HashEmbedding(tf.keras.layers.Layer):
                     default_value=0
                 )
             )
+        print('hashes initialized')
         
         self.word_importance = tf.Variable(
             tf.random_normal_initializer(mean=0, stddev=0.0005)(shape=[self.num_words, self.num_hash_func], dtype=tf.float16)
             )
+        print("word importances initialized")
 
         self.embedding_matrix = tf.Variable(
             tf.concat([
                 tf.zeros(shape=[1, self.embedding_width], dtype=tf.float16),
                 tf.random_normal_initializer(mean=0, stddev=0.1)(shape=[self.num_hash_buckets, self.embedding_width], dtype=tf.float16),
             ],0))
+        print('embedding_matrix_initialized')
 
         super().build(batch_input_shape) # must be at end
 
@@ -77,7 +82,6 @@ class HashEmbedding(tf.keras.layers.Layer):
     def call(self, X):
 
         word_ids_to_hash_space = X % self.num_words
-
         # We make sure the importance has a different id than the words. This way
         # if the words collide, the importances will not and we "lose" once, not twice.
         word_ids_to_hash_space_importance = (X+3) % self.num_words
@@ -107,9 +111,9 @@ class HashEmbedding(tf.keras.layers.Layer):
             
             For example:
             t3d = tf.constant([[[0,0],[1,1],[1,1]],
-                   [[2,2],[3,3],[3,3]],
-                   [[4,4],[5,5],[5,5]],
-                   [[6,6],[7,7],[8,8]]])
+                               [[2,2],[3,3],[3,3]],
+                               [[4,4],[5,5],[5,5]],
+                               [[6,6],[7,7],[8,8]]])
             t3d
             <tf.Tensor: shape=(4, 3, 2), dtype=int32, numpy=
             array([[[0, 0],
@@ -147,21 +151,21 @@ class HashEmbedding(tf.keras.layers.Layer):
                     [1, 1],
                     [1, 1]],
 
-                [[0, 0],
+                   [[0, 0],
                     [0, 0],
                     [0, 0]],
 
-                [[4, 4],
+                   [[4, 4],
                     [0, 0],
                     [5, 5]],
 
-                [[0, 0],
+                   [[0, 0],
                     [7, 7],
                     [0, 0]]], dtype=int32)>
             """
 
             weighted_embeddings.append(
-                tf.einsum('ijk,ij->ijk',embedding_dims,importance))
+                tf.einsum('ijk,ij->ijk', embedding_dims, importance))
 
         weighted_average_embedding = self.aggregation_func(weighted_embeddings)
 

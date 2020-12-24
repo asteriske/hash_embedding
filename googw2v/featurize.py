@@ -23,7 +23,7 @@ def generate_training_data(sequences, window_size, num_ns, vocab_size, seed):
 
   # Build the sampling table for vocab_size tokens.
   sampling_table = tf.keras.preprocessing.sequence.make_sampling_table(vocab_size)
-
+#   sampling_table=None
   # Iterate over all sequences (sentences) in dataset.
   for sequence in tqdm.tqdm(sequences):
 
@@ -33,7 +33,12 @@ def generate_training_data(sequences, window_size, num_ns, vocab_size, seed):
           vocabulary_size=vocab_size,
           sampling_table=sampling_table,
           window_size=window_size,
+          shuffle=False,
           negative_samples=0)
+    # print('sequence')
+    # print(sequence)
+    # print("positive_skip_grams")
+    # print(positive_skip_grams)
 
     # Iterate over each positive skip-gram pair to produce training examples 
     # with positive context word and negative samples.
@@ -46,7 +51,7 @@ def generate_training_data(sequences, window_size, num_ns, vocab_size, seed):
           num_sampled=num_ns, 
           unique=True, 
           range_max=vocab_size, 
-          seed=conf['seed'], 
+          seed=seed, 
           name="negative_sampling")
 
       # Build context and label vectors (for one target word)
@@ -64,7 +69,7 @@ def generate_training_data(sequences, window_size, num_ns, vocab_size, seed):
   return targets, contexts, labels
 
 
-def prepare_vectorize_layer(path_to_file, text_ds):
+def prepare_vectorize_layer(text_ds):
 
     vectorize_layer = TextVectorization(
         standardize=custom_standardization,
@@ -81,11 +86,7 @@ def vectorize_text(path_to_file, zipped=False):
 
     text_ds = tf.data.TextLineDataset(path_to_file).filter(lambda x: tf.cast(tf.strings.length(x), bool))
 
-    vectorize_layer = prepare_vectorize_layer(path_to_file, text_ds)
-
-    def vectorize_text(text):
-        text = tf.expand_dims(text, -1)
-        return tf.squeeze(vectorize_layer(text))
+    vectorize_layer = prepare_vectorize_layer(text_ds)
 
     text_vector_ds = (
         text_ds
@@ -106,10 +107,17 @@ def sequences_to_dataset(text_dataset):
     sequences = list(text_dataset.as_numpy_iterator())
     targets, contexts, labels = generate_training_data(
         sequences=sequences, 
-        window_size=2, 
-        num_ns=4, 
+        window_size=conf['window_size'], 
+        num_ns=conf['num_ns'], 
         vocab_size=conf['vocab_size'], 
         seed=conf['seed'])
+    # print("sequence length")
+    # print(len(sequences))
+    # print("num targets")
+    # print(len(targets))
+    # print(sequences)
+    # print(targets)
+
 
     dataset = tf.data.Dataset.from_tensor_slices(((targets, contexts), labels))
     dataset = dataset.shuffle(conf['buffer_size']).batch(conf['batch_size'], drop_remainder=True)

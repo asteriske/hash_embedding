@@ -25,18 +25,29 @@ class Skipgram():
         words in the embedding with inverse frequency to expected
         occurrence.
         """
-        
-        random_draws = tf.random.uniform(input.shape, dtype=tf.float64)
+        input_shape = tf.shape(input) 
+        random_draws = tf.random.uniform(input_shape, dtype=tf.float64)
+        # print("random draws")
+        # print(random_draws)
         
         matching_frequencies = tf.squeeze(tf.gather(self.frequencies, input))
+        # print('matching_frequencies')
+        # print(matching_frequencies)
         
-        probability_less_than_draw = tf.squeeze(tf.cast(matching_frequencies < random_draws, tf.int64))
+        probability_less_than_draw = tf.squeeze(tf.cast(matching_frequencies > random_draws, tf.int64))
+        # print('probability_less_than_draw')
+        # print(probability_less_than_draw)
         
         # mask the missing words to 0
         downsampled_sequence = tf.math.multiply(input, probability_less_than_draw)
+        # print("downsampled_sequence")
+        # print(downsampled_sequence)
         
         # zero out the rows reflecting missing words
-        downsampled_context = tf.reshape(probability_less_than_draw, (input.shape[0], 1)) * context_words
+        # reshape to (n,1)
+        downsampled_context = tf.reshape(probability_less_than_draw,[tf.size(probability_less_than_draw), 1]) * context_words
+        # print("downsampled_context")
+        # print(downsampled_context)
         
         return downsampled_sequence, downsampled_context
 
@@ -61,8 +72,8 @@ class Skipgram():
         """
         fat_ones = tf.linalg.band_part(
             tf.ones([size,size], dtype=tf.int64),
-            num_lower=self.window-1,
-            num_upper=self.window-1
+            num_lower=self.window,
+            num_upper=self.window
         )
     
         return tf.linalg.set_diag(fat_ones, tf.zeros(size, dtype=tf.int64))
@@ -84,9 +95,23 @@ class Skipgram():
         words being rejected.    
         """
     
-        fat_diagonal = self._make_fat_diagonal(size=input.shape[0])
-    
-        context_words = tf.math.multiply(input, fat_diagonal)
+        # Ensure the input is rank 2
+        if tf.rank(input) == 1:
+            input = tf.expand_dims(input, axis=0)
+        input_shape = tf.shape(input)
+        num_input_rows = input_shape[0]
+        num_input_cols = input_shape[1]
+
+        fat_diagonal = self._make_fat_diagonal(size=num_input_cols)
+
+        expanded_input = tf.repeat(input, repeats=num_input_cols, axis=0)
+        expanded_fat_diagonal = tf.tile(fat_diagonal, multiples=[num_input_rows, 1])
+
+        # print("expanded_input")
+        # print(expanded_input)
+        context_words = tf.math.multiply(expanded_input, expanded_fat_diagonal)
+        # print("context words")
+        # print(context_words)
     
         # Apply table of probabilities. If a word in the sequence is too common,
         # it will be removed from the sequence and the corresponding row of 
@@ -99,9 +124,15 @@ class Skipgram():
         else:
             downsampled_sequence = input
             downsampled_context_words = context_words
-    
+        # print("downsampled_sequence")
+        # print(downsampled_sequence)
+        # print("downsampled context words")
+        # print(downsampled_context_words)
+        # Unravel the sequence into a (n,1) tensor and repeat it so that
+        # each sequence member is paired with an element of the context vector
+        # to which it corresponds.
         key_and_context_with_zeros = tf.stack([
-            tf.repeat(downsampled_sequence, downsampled_sequence.shape[0]),
+            tf.repeat(tf.reshape(downsampled_sequence,[-1]), num_input_cols),
             tf.reshape(downsampled_context_words, [-1]),
            ],axis=1)
         # print('key_and_context_with_zeros')
@@ -114,6 +145,8 @@ class Skipgram():
         # print(nonzero_rows)
 
         key_and_context = tf.squeeze(tf.gather(key_and_context_with_zeros, nonzero_rows))
+        # print("key and context")
+        # print(key_and_context)
 
         if tf.rank(key_and_context) == tf.TensorShape([1]):
             return tf.expand_dims(key_and_context,0)
@@ -167,19 +200,19 @@ class Skipgram():
 
 
     def __call__(self, input: tf.Tensor) -> Tuple[tf.Tensor,tf.Tensor,tf.Tensor]:
-    
+
         positive_skipgrams = self._make_positive_skipgrams(input)
-        # print("positives")
-        # print(positive_skipgrams)
     
         negative_skipgrams = self._select_skipgram_negatives(positive_skipgrams[:, 1])
     
         labels = self._label_mask(negative_skipgrams)
     
-        target = tf.expand_dims(positive_skipgrams[:,0],-1)
+        target = positive_skipgrams[:,0]
     
-        features = tf.concat([positive_skipgrams[:,1:2],
-                                      negative_skipgrams], axis=1)
+        features = tf.expand_dims(
+            tf.concat([positive_skipgrams[:,1:2],
+                       negative_skipgrams], axis=1),
+                       axis=2)
         
         return target, features, labels
         # return positive_skipgrams, negative_skipgrams
